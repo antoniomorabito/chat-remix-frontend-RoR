@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "remix build",
-    "dev": "remix dev -c \"npm run dev:serve\"",
+    "dev": "remix dev --port 5173",
     "dev:serve": "NODE_OPTIONS=\"--import ./mocks/index.js\" remix-serve ./build/index.js",
     "format": "prettier --write .",
     "lint": "eslint --cache --cache-location ./node_modules/.cache/eslint .",
@@ -46,6 +46,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/eslint": "^8.56.12",
     "@types/node": "^22.9.3",
+    "@types/rails__actioncable": "^6.1.11",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@typescript-eslint/eslint-plugin": "^8.15.0",

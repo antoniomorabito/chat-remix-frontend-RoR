@@ -1,141 +1,185 @@
-import type { MetaFunction } from "@remix-run/node";
-import { Link } from "@remix-run/react";
+import { useLoaderData, Link, useNavigate } from "@remix-run/react";
+import axios from "axios";
+import { useState } from "react";
 
-import { useOptionalUser } from "~/utils";
+interface Chatroom {
+  unique_code: string;
+  name: string;
+}
 
-export const meta: MetaFunction = () => [{ title: "Remix Notes" }];
+interface ChatroomResponse {
+  chatrooms: Chatroom[];
+  pagination: {
+    total_pages: number;
+    total_count: number;
+    current_page: number;
+  };
+}
 
-export default function Index() {
-  const user = useOptionalUser();
+
+export async function loader({ request }: { request: Request }) {
+  const url = new URL(request.url);
+  const page = url.searchParams.get("page") || "1"; // Default page 1
+  const per_page = url.searchParams.get("per_page") || "10"; // Default 10 chatrooms per halaman
+
+  try {
+    const res = await axios.get(`http://localhost:3000/chatrooms?page=${page}&per_page=${per_page}`);
+    return res.data as ChatroomResponse;
+  } catch (error) {
+    console.error("🚨 Error fetching chatrooms:", error);
+    throw new Response("Failed to load chatrooms", { status: 500 });
+  }
+}
+
+export default function ChatroomsList() {
+  const { chatrooms, pagination } = useLoaderData() as ChatroomResponse;
+  const [selectedChat, setSelectedChat] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const navigate = useNavigate();
+
+  // Navigasi Pagination
+  const goToPage = (page: number) => {
+    if (page > 0 && page <= pagination.total_pages) {
+      navigate(`?page=${page}`);
+    }
+  };
+
   return (
-    <main className="relative min-h-screen bg-white sm:flex sm:items-center sm:justify-center">
-      <div className="relative sm:pb-16 sm:pt-8">
-        <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
-          <div className="relative shadow-xl sm:overflow-hidden sm:rounded-2xl">
-            <div className="absolute inset-0">
-              <img
-                className="h-full w-full object-cover"
-                src="https://user-images.githubusercontent.com/1500684/157774694-99820c51-8165-4908-a031-34fc371ac0d6.jpg"
-                alt="Sonic Youth On Stage"
-              />
-              <div className="absolute inset-0 bg-[color:rgba(254,204,27,0.5)] mix-blend-multiply" />
-            </div>
-            <div className="relative px-4 pb-8 pt-16 sm:px-6 sm:pb-14 sm:pt-24 lg:px-8 lg:pb-20 lg:pt-32">
-              <h1 className="text-center text-6xl font-extrabold tracking-tight sm:text-8xl lg:text-9xl">
-                <span className="block uppercase text-yellow-500 drop-shadow-md">
-                  Indie Stack
-                </span>
-              </h1>
-              <p className="mx-auto mt-6 max-w-lg text-center text-xl text-white sm:max-w-3xl">
-                Check the README.md file for instructions on how to get this
-                project deployed.
-              </p>
-              <div className="mx-auto mt-10 max-w-sm sm:flex sm:max-w-none sm:justify-center">
-                {user ? (
-                  <Link
-                    to="/notes"
-                    className="flex items-center justify-center rounded-md border border-transparent bg-white px-4 py-3 text-base font-medium text-yellow-700 shadow-sm hover:bg-yellow-50 sm:px-8"
-                  >
-                    View Notes for {user.email}
-                  </Link>
-                ) : (
-                  <div className="space-y-4 sm:mx-auto sm:inline-grid sm:grid-cols-2 sm:gap-5 sm:space-y-0">
-                    <Link
-                      to="/join"
-                      className="flex items-center justify-center rounded-md border border-transparent bg-white px-4 py-3 text-base font-medium text-yellow-700 shadow-sm hover:bg-yellow-50 sm:px-8"
-                    >
-                      Sign up
-                    </Link>
-                    <Link
-                      to="/login"
-                      className="flex items-center justify-center rounded-md bg-yellow-500 px-4 py-3 font-medium text-white hover:bg-yellow-600"
-                    >
-                      Log In
-                    </Link>
-                  </div>
-                )}
-              </div>
-              <a href="https://remix.run">
-                <img
-                  src="https://user-images.githubusercontent.com/1500684/158298926-e45dafff-3544-4b69-96d6-d3bcc33fc76a.svg"
-                  alt="Remix"
-                  className="mx-auto mt-16 w-full max-w-[12rem] md:max-w-[16rem]"
-                />
-              </a>
-            </div>
-          </div>
+    <div className="flex h-screen bg-gray-100">
+      {/* Sidebar Chatrooms */}
+      <div
+        className={`w-80 bg-white shadow-lg p-4 transition-all duration-300 ${
+          sidebarOpen ? "block" : "hidden md:block"
+        }`}
+      >
+        <h2 className="text-xl font-bold mb-4">🗨️ Chatrooms</h2>
+        <div className="space-y-2">
+          {chatrooms.length > 0 ? (
+            chatrooms.map((chatroom) => (
+              <button
+                key={chatroom.unique_code}
+                onClick={() => setSelectedChat(chatroom.unique_code)}
+                className={`w-full text-left p-3 rounded-lg text-gray-800 hover:bg-blue-100 ${
+                  selectedChat === chatroom.unique_code ? "bg-blue-500 text-white" : ""
+                }`}
+              >
+                {chatroom.name}
+              </button>
+            ))
+          ) : (
+            <p className="text-gray-500">No chatrooms available.</p>
+          )}
         </div>
 
-        <div className="mx-auto max-w-7xl px-4 py-2 sm:px-6 lg:px-8">
-          <div className="mt-6 flex flex-wrap justify-center gap-8">
-            {[
-              {
-                src: "https://user-images.githubusercontent.com/1500684/157764397-ccd8ea10-b8aa-4772-a99b-35de937319e1.svg",
-                alt: "Fly.io",
-                href: "https://fly.io",
-              },
-              {
-                src: "https://user-images.githubusercontent.com/1500684/157764395-137ec949-382c-43bd-a3c0-0cb8cb22e22d.svg",
-                alt: "SQLite",
-                href: "https://sqlite.org",
-              },
-              {
-                src: "https://user-images.githubusercontent.com/1500684/157764484-ad64a21a-d7fb-47e3-8669-ec046da20c1f.svg",
-                alt: "Prisma",
-                href: "https://prisma.io",
-              },
-              {
-                src: "https://user-images.githubusercontent.com/1500684/157764276-a516a239-e377-4a20-b44a-0ac7b65c8c14.svg",
-                alt: "Tailwind",
-                href: "https://tailwindcss.com",
-              },
-              {
-                src: "https://user-images.githubusercontent.com/1500684/157764454-48ac8c71-a2a9-4b5e-b19c-edef8b8953d6.svg",
-                alt: "Cypress",
-                href: "https://www.cypress.io",
-              },
-              {
-                src: "https://user-images.githubusercontent.com/1500684/157772386-75444196-0604-4340-af28-53b236faa182.svg",
-                alt: "MSW",
-                href: "https://mswjs.io",
-              },
-              {
-                src: "https://user-images.githubusercontent.com/1500684/157772447-00fccdce-9d12-46a3-8bb4-fac612cdc949.svg",
-                alt: "Vitest",
-                href: "https://vitest.dev",
-              },
-              {
-                src: "https://user-images.githubusercontent.com/1500684/157772662-92b0dd3a-453f-4d18-b8be-9fa6efde52cf.png",
-                alt: "Testing Library",
-                href: "https://testing-library.com",
-              },
-              {
-                src: "https://user-images.githubusercontent.com/1500684/157772934-ce0a943d-e9d0-40f8-97f3-f464c0811643.svg",
-                alt: "Prettier",
-                href: "https://prettier.io",
-              },
-              {
-                src: "https://user-images.githubusercontent.com/1500684/157772990-3968ff7c-b551-4c55-a25c-046a32709a8e.svg",
-                alt: "ESLint",
-                href: "https://eslint.org",
-              },
-              {
-                src: "https://user-images.githubusercontent.com/1500684/157773063-20a0ed64-b9f8-4e0b-9d1e-0b65a3d4a6db.svg",
-                alt: "TypeScript",
-                href: "https://typescriptlang.org",
-              },
-            ].map((img) => (
-              <a
-                key={img.href}
-                href={img.href}
-                className="flex h-16 w-32 justify-center p-1 grayscale transition hover:grayscale-0 focus:grayscale-0"
-              >
-                <img alt={img.alt} src={img.src} className="object-contain" />
-              </a>
-            ))}
-          </div>
+        {/* Pagination */}
+        <div className="mt-4 flex justify-between">
+          <button
+            disabled={pagination.current_page <= 1}
+            onClick={() => goToPage(pagination.current_page - 1)}
+            className={`p-2 rounded ${
+              pagination.current_page <= 1 ? "bg-gray-300" : "bg-blue-500 text-white hover:bg-blue-600"
+            }`}
+          >
+            ⬅ Prev
+          </button>
+
+          <span className="p-2">Page {pagination.current_page} / {pagination.total_pages}</span>
+
+          <button
+            disabled={pagination.current_page >= pagination.total_pages}
+            onClick={() => goToPage(pagination.current_page + 1)}
+            className={`p-2 rounded ${
+              pagination.current_page >= pagination.total_pages ? "bg-gray-300" : "bg-blue-500 text-white hover:bg-blue-600"
+            }`}
+          >
+            Next ➡
+          </button>
         </div>
       </div>
-    </main>
+
+      {/* Chatroom Container */}
+      <div className="flex-1 flex flex-col bg-gray-50">
+        {/* Navbar Chat */}
+        <div className="bg-blue-500 text-white p-4 flex justify-between items-center">
+          <button
+            className="md:hidden text-white"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+          >
+            📜
+          </button>
+          <h2 className="text-lg font-semibold">
+            {selectedChat ? `Chatroom: ${selectedChat}` : "Select a Chatroom"}
+          </h2>
+        </div>
+
+        {/* Chat Messages */}
+        {selectedChat ? <ChatRoom chatroomId={selectedChat} /> : <EmptyChat />}
+      </div>
+    </div>
+  );
+}
+
+
+function ChatRoom({ chatroomId }: { chatroomId: string }) {
+  const [messages, setMessages] = useState<{ sender: string; content: string }[]>([]);
+  const [content, setContent] = useState("");
+
+  const sendMessage = async () => {
+    if (!content.trim()) return;
+    try {
+      await axios.post("http://localhost:3000/messages", {
+        message: { chatroom_id: chatroomId, content: content, sender: "User" },
+      });
+      setMessages((prev) => [...prev, { sender: "User", content }]);
+      setContent("");
+    } catch (error) {
+      console.error("Error sending message:", error);
+    }
+  };
+
+  return (
+    <div className="flex-1 flex flex-col">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {messages.length > 0 ? (
+          messages.map((msg, index) => (
+            <div
+              key={index}
+              className={`max-w-xs p-3 rounded-lg ${
+                msg.sender === "User" ? "bg-blue-500 text-white self-end" : "bg-gray-300 text-gray-800 self-start"
+              }`}
+            >
+              <p>{msg.content}</p>
+            </div>
+          ))
+        ) : (
+          <p className="text-gray-500 text-center">Start chatting now...</p>
+        )}
+      </div>
+
+      {/* Input Chat */}
+      <div className="p-4 bg-white shadow-md flex">
+        <input
+          type="text"
+          className="flex-1 border p-2 rounded-l-lg"
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="Type a message..."
+        />
+        <button
+          onClick={sendMessage}
+          className="bg-blue-500 text-white p-2 rounded-r-lg hover:bg-blue-600"
+        >
+          Send
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function EmptyChat() {
+  return (
+    <div className="flex-1 flex items-center justify-center text-gray-500">
+      Select a chatroom to start chatting!
+    </div>
   );
 }
