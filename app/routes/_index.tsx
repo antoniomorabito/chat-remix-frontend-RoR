@@ -1,6 +1,6 @@
 import { useLoaderData, Link, useNavigate } from "@remix-run/react";
 import axios from "axios";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface Chatroom {
   unique_code: string;
@@ -19,8 +19,8 @@ interface ChatroomResponse {
 
 export async function loader({ request }: { request: Request }) {
   const url = new URL(request.url);
-  const page = url.searchParams.get("page") || "1"; // Default page 1
-  const per_page = url.searchParams.get("per_page") || "10"; // Default 10 chatrooms per halaman
+  const page = url.searchParams.get("page") || "1";
+  const per_page = url.searchParams.get("per_page") || "10";
 
   try {
     const res = await axios.get(`http://localhost:3000/chatrooms?page=${page}&per_page=${per_page}`);
@@ -33,11 +33,32 @@ export async function loader({ request }: { request: Request }) {
 
 export default function ChatroomsList() {
   const { chatrooms, pagination } = useLoaderData() as ChatroomResponse;
+  const [chatroomList, setChatroomList] = useState(chatrooms);
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [newChatroom, setNewChatroom] = useState("");
   const navigate = useNavigate();
 
-  // Navigasi Pagination
+  useEffect(() => {
+    setChatroomList(chatrooms);
+  }, [chatrooms]);
+
+  // ✅ Add new chatroom function
+  const addChatroom = async () => {
+    if (!newChatroom.trim()) return;
+
+    try {
+      const response = await axios.post("http://localhost:3000/chatrooms", {
+        chatroom: { name: newChatroom },
+      });
+
+      setChatroomList((prev) => [response.data.chatroom, ...prev]); // 🆕 Update list instantly
+      setNewChatroom("");
+    } catch (error) {
+      console.error("🚨 Error creating chatroom:", error);
+    }
+  };
+
   const goToPage = (page: number) => {
     if (page > 0 && page <= pagination.total_pages) {
       navigate(`?page=${page}`);
@@ -53,9 +74,28 @@ export default function ChatroomsList() {
         }`}
       >
         <h2 className="text-xl font-bold mb-4">🗨️ Chatrooms</h2>
+
+        {/* 🆕 Chatroom Creation Form */}
+        <div className="mb-4">
+          <input
+            type="text"
+            className="border p-2 w-full rounded-md"
+            value={newChatroom}
+            onChange={(e) => setNewChatroom(e.target.value)}
+            placeholder="Enter new chatroom name..."
+          />
+          <button
+            onClick={addChatroom}
+            className="mt-2 w-full bg-green-500 text-white p-2 rounded-md hover:bg-green-600"
+          >
+            ➕ Create Chatroom
+          </button>
+        </div>
+
+        {/* Chatroom List */}
         <div className="space-y-2">
-          {chatrooms.length > 0 ? (
-            chatrooms.map((chatroom) => (
+          {chatroomList.length > 0 ? (
+            chatroomList.map((chatroom) => (
               <button
                 key={chatroom.unique_code}
                 onClick={() => setSelectedChat(chatroom.unique_code)}
@@ -71,7 +111,7 @@ export default function ChatroomsList() {
           )}
         </div>
 
-        {/* Pagination */}
+        {/* Pagination Controls */}
         <div className="mt-4 flex justify-between">
           <button
             disabled={pagination.current_page <= 1}
@@ -118,7 +158,6 @@ export default function ChatroomsList() {
     </div>
   );
 }
-
 
 function ChatRoom({ chatroomId }: { chatroomId: string }) {
   const [messages, setMessages] = useState<{ sender: string; content: string }[]>([]);
